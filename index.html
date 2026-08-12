@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tour Key — Unlock Your Adventure</title>
+<meta name="description" content="İstanbul merkezli, global tur operatörü. Güvenli Seyahat sistemi ile ailenizin her zaman nerede olduğunu bilin." />
+<link rel="icon" href="data:,">
+<style>
+  html, body { margin: 0; padding: 0; }
+  #root { min-height: 100vh; }
+  .tk-loading { display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; color: #16304f; }
+</style>
+</head>
+<body>
+<div id="root"><div class="tk-loading">Yükleniyor…</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useMemo } = React;
+
+/* ---------------------------------------------------------
+   Bağımsız ikon bileşenleri (CDN bağımlılığı olmadan çalışır)
+--------------------------------------------------------- */
+function makeIcon(paths) {
+  return function Icon({ size = 20 }) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {paths}
+      </svg>
+    );
+  };
+}
+
+const MapPin = makeIcon(<><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></>);
+const Clock = makeIcon(<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>);
+const Users = makeIcon(<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>);
+const ShieldCheck = makeIcon(<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></>);
+const Radio = makeIcon(<><circle cx="12" cy="12" r="2"/><path d="M4.93 19.07a10 10 0 0 1 0-14.14"/><path d="M7.76 16.24a6 6 0 0 1 0-8.48"/><path d="M16.24 7.76a6 6 0 0 1 0 8.48"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></>);
+const Camera = makeIcon(<><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></>);
+const Phone = makeIcon(<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>);
+const Mail = makeIcon(<><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></>);
+const ChevronRight = makeIcon(<polyline points="9 18 15 12 9 6"/>);
+const ChevronLeft = makeIcon(<polyline points="15 18 9 12 15 6"/>);
+const X = makeIcon(<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>);
+const Check = makeIcon(<polyline points="20 6 9 17 4 12"/>);
+const Globe2 = makeIcon(<><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></>);
+const KeyRound = makeIcon(<><circle cx="8" cy="16" r="5"/><path d="m14.5 9.5 6-6"/><path d="m18 6 2 2"/><path d="m14 10 2 2"/></>);
+const Menu = makeIcon(<><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></>);
+
+
+/* ---------------------------------------------------------
+   TOUR KEY — brand tokens
+   Navy #16304f / Gold gradient #f9c74f→#d9541f / Teal #2ba9b4
+   Parchment #f6ecd4 / Ink #241d10
+--------------------------------------------------------- */
+
+const LANGS = ["tr", "en", "ar", "zh"];
+const RTL_LANGS = ["ar"];
+
+const DICT = {
+  brand: { tr: "TOUR KEY", en: "TOUR KEY", ar: "تور كي", zh: "途钥" },
+  tagline: {
+    tr: "Maceranı Aç",
+    en: "Unlock Your Adventure",
+    ar: "افتح مغامرتك",
+    zh: "开启你的冒险",
+  },
+  nav: {
+    home: { tr: "Ana Sayfa", en: "Home", ar: "الرئيسية", zh: "首页" },
+    tours: { tr: "Turlar", en: "Tours", ar: "الجولات", zh: "行程" },
+    safety: { tr: "Güvenli Seyahat", en: "Safe Travel", ar: "سفر آمن", zh: "安全出行" },
+    contact: { tr: "İletişim", en: "Contact", ar: "اتصل بنا", zh: "联系我们" },
+  },
+  hero: {
+    eyebrow: {
+      tr: "İSTANBUL MERKEZLİ · GLOBAL TUR OPERASYONU",
+      en: "ISTANBUL-BASED · GLOBAL TOUR OPERATIONS",
+      ar: "مقرها اسطنبول · عمليات سياحية عالمية",
+      zh: "总部位于伊斯坦布尔 · 全球旅行运营",
+    },
+    title: {
+      tr: "Her yolculuğun bir anahtarı vardır.",
+      en: "Every journey has a key.",
+      ar: "لكل رحلة مفتاح.",
+      zh: "每一段旅程都有一把钥匙。",
+    },
+    sub: {
+      tr: "İstanbul'dan dünyaya, ailenizin nerede olduğunu her an bildiği turlar. Canlı konum, canlı görüntü, gönül rahatlığı.",
+      en: "From Istanbul to the world — tours where your family always knows where you are. Live location, live video, real peace of mind.",
+      ar: "من إسطنبول إلى العالم — جولات تعرف فيها عائلتك دائمًا مكانك. موقع مباشر، فيديو مباشر، وراحة بال حقيقية.",
+      zh: "从伊斯坦布尔到世界各地——让家人随时知道您位置的旅行。实时定位、实时视频，真正安心。",
+    },
+    cta: { tr: "Turları Keşfet", en: "Explore Tours", ar: "استكشف الجولات", zh: "探索行程" },
+    ctaSecondary: { tr: "Güvenlik Nasıl Çalışır?", en: "How Safety Works", ar: "كيف يعمل الأمان", zh: "安全如何运作" },
+  },
+  tours: {
+    heading: { tr: "Öne Çıkan Turlar", en: "Featured Tours", ar: "الجولات المميزة", zh: "精选行程" },
+    sub: {
+      tr: "İstanbul ve çevresinden seçilmiş, güvenli seyahat garantili deneyimler.",
+      en: "Curated experiences around Istanbul, backed by our safe-travel guarantee.",
+      ar: "تجارب منتقاة حول إسطنبول، مدعومة بضمان السفر الآمن.",
+      zh: "精心策划的伊斯坦布尔及周边体验，配备安全出行保障。",
+    },
+    perPerson: { tr: "kişi başı", en: "per person", ar: "للشخص", zh: "每人" },
+    viewDetail: { tr: "Detayları Gör", en: "View Details", ar: "عرض التفاصيل", zh: "查看详情" },
+    book: { tr: "Rezervasyon Yap", en: "Book Now", ar: "احجز الآن", zh: "立即预订" },
+    live: { tr: "Canlı Takip Dahil", en: "Live Tracking Included", ar: "تتبع مباشر مشمول", zh: "含实时追踪" },
+  },
+  safety: {
+    heading: { tr: "Güvenli Seyahat Sistemi", en: "The Safe Travel System", ar: "نظام السفر الآمن", zh: "安全出行系统" },
+    sub: {
+      tr: "Anahtarımız sadece kapıları değil, gönül rahatlığını da açar.",
+      en: "Our key doesn't just open doors — it opens peace of mind.",
+      ar: "مفتاحنا لا يفتح الأبواب فقط، بل يفتح راحة البال أيضًا.",
+      zh: "我们的钥匙打开的不只是门，更是内心的安宁。",
+    },
+    f1t: { tr: "Canlı Konum", en: "Live Location", ar: "الموقع المباشر", zh: "实时位置" },
+    f1d: {
+      tr: "Aile üyeleri, turdaki her yolcunun konumunu uygulama üzerinden anlık olarak görebilir.",
+      en: "Family members can see every traveler's location in real time through the app.",
+      ar: "يمكن لأفراد العائلة رؤية موقع كل مسافر في الوقت الفعلي عبر التطبيق.",
+      zh: "家人可以通过应用程序实时查看每位旅客的位置。",
+    },
+    f2t: { tr: "Canlı Görüntü", en: "Live Video", ar: "فيديو مباشر", zh: "实时视频" },
+    f2d: {
+      tr: "Şoför ve araç kamerasından, size verilen özel kodla canlı görüntü izleyebilirsiniz.",
+      en: "Watch a live feed from the driver and vehicle camera using your own private access code.",
+      ar: "شاهد بثًا مباشرًا من السائق وكاميرا المركبة باستخدام رمز الوصول الخاص بك.",
+      zh: "使用您专属的访问码，观看司机和车内摄像头的实时画面。",
+    },
+    f3t: { tr: "Şeffaf Onay", en: "Transparent Consent", ar: "موافقة شفافة", zh: "透明同意机制" },
+    f3d: {
+      tr: "Her şoför ve araç, izleme sistemini kabul ederek çalışır. Gizli kayıt yoktur — araçta her zaman görünür bilgilendirme bulunur.",
+      en: "Every driver and vehicle operates having accepted the monitoring system. No hidden recording — vehicles always display visible notice.",
+      ar: "يعمل كل سائق ومركبة بعد قبول نظام المراقبة. لا يوجد تسجيل خفي — تعرض المركبات دائمًا إشعارًا مرئيًا.",
+      zh: "每位司机和车辆都在同意监控系统后运营。没有隐藏录制——车内始终有可见提示。",
+    },
+    f4t: { tr: "Kişiye Özel Kod", en: "Private Access Code", ar: "رمز وصول خاص", zh: "专属访问码" },
+    f4d: {
+      tr: "Eş veya ebeveyn, sadece kendisine tanımlanan tek kullanımlık kodla erişim sağlar. Erişimler kayıt altındadır.",
+      en: "A spouse or parent gets access only through their own single-purpose code. All access is logged.",
+      ar: "يحصل الزوج أو الوالد على الوصول فقط من خلال رمزه الخاص أحادي الغرض. يتم تسجيل جميع عمليات الوصول.",
+      zh: "配偶或家长仅可通过其专属的一次性代码访问，所有访问均有记录。",
+    },
+    badge: { tr: "KVKK & GDPR uyumlu, onaya dayalı izleme", en: "KVKK & GDPR-aligned, consent-based monitoring", ar: "مراقبة قائمة على الموافقة ومتوافقة مع KVKK وGDPR", zh: "符合KVKK和GDPR规范，基于同意的监控" },
+  },
+  contact: {
+    heading: { tr: "Bize Ulaşın", en: "Get in Touch", ar: "تواصل معنا", zh: "联系我们" },
+    sub: {
+      tr: "İstanbul ofisimiz veya global destek hattımız üzerinden 7/24 yanınızdayız.",
+      en: "We're here 24/7 through our Istanbul office or global support line.",
+      ar: "نحن هنا على مدار الساعة طوال أيام الأسبوع عبر مكتبنا في إسطنبول أو خط الدعم العالمي.",
+      zh: "我们的伊斯坦布尔办公室及全球支持热线全天候为您服务。",
+    },
+    name: { tr: "Ad Soyad", en: "Full Name", ar: "الاسم الكامل", zh: "姓名" },
+    email: { tr: "E-posta", en: "Email", ar: "البريد الإلكتروني", zh: "电子邮箱" },
+    msg: { tr: "Mesajınız", en: "Message", ar: "رسالتك", zh: "留言" },
+    send: { tr: "Gönder", en: "Send", ar: "إرسال", zh: "发送" },
+  },
+  booking: {
+    title: { tr: "Rezervasyon", en: "Booking", ar: "الحجز", zh: "预订" },
+    step1: { tr: "Tarih & Kişi", en: "Date & Guests", ar: "التاريخ والضيوف", zh: "日期与人数" },
+    step2: { tr: "İletişim Bilgileri", en: "Contact Info", ar: "معلومات الاتصال", zh: "联系信息" },
+    step3: { tr: "Ödeme", en: "Payment", ar: "الدفع", zh: "付款" },
+    date: { tr: "Tarih", en: "Date", ar: "التاريخ", zh: "日期" },
+    guests: { tr: "Kişi Sayısı", en: "Guests", ar: "عدد الضيوف", zh: "人数" },
+    next: { tr: "Devam Et", en: "Continue", ar: "متابعة", zh: "继续" },
+    back: { tr: "Geri", en: "Back", ar: "رجوع", zh: "返回" },
+    pay: { tr: "Ödemeyi Tamamla", en: "Complete Payment", ar: "إتمام الدفع", zh: "完成付款" },
+    total: { tr: "Toplam", en: "Total", ar: "الإجمالي", zh: "总计" },
+    success: { tr: "Rezervasyonunuz alındı!", en: "Your booking is confirmed!", ar: "تم تأكيد حجزك!", zh: "您的预订已确认！" },
+    successSub: {
+      tr: "Onay e-postası birazdan gelecek. Güvenli seyahat kodunuz seyahat tarihinden 24 saat önce iletilecektir.",
+      en: "A confirmation email is on its way. Your safe-travel access code will be sent 24 hours before departure.",
+      ar: "بريد التأكيد في الطريق. سيتم إرسال رمز السفر الآمن الخاص بك قبل 24 ساعة من المغادرة.",
+      zh: "确认邮件即将发送。您的安全出行访问码将在出发前24小时发送。",
+    },
+    demoNote: {
+      tr: "Bu demo ortamında ödeme test modundadır, gerçek kart bilgisi girmeyin.",
+      en: "This demo runs in test mode — do not enter real card details.",
+      ar: "يعمل هذا العرض التوضيحي في وضع الاختبار — لا تُدخل بيانات بطاقة حقيقية.",
+      zh: "此演示处于测试模式——请勿输入真实卡信息。",
+    },
+  },
+  footer: {
+    rights: { tr: "Tüm hakları saklıdır.", en: "All rights reserved.", ar: "جميع الحقوق محفوظة.", zh: "版权所有。" },
+  },
+};
+
+const TOURS = [
+  {
+    id: "bosphorus-sunset",
+    price: 89,
+    duration: { tr: "4 saat", en: "4 hours", ar: "4 ساعات", zh: "4小时" },
+    img: "https://images.unsplash.com/photo-1541432901042-2d8bd64b4a9b?q=80&w=1200&auto=format&fit=crop",
+    name: { tr: "Boğaz'da Gün Batımı Turu", en: "Bosphorus Sunset Cruise", ar: "جولة غروب الشمس في البوسفور", zh: "博斯普鲁斯海峡日落之旅" },
+    loc: { tr: "İstanbul, Türkiye", en: "Istanbul, Turkey", ar: "إسطنبول، تركيا", zh: "土耳其伊斯坦布尔" },
+    desc: {
+      tr: "İki kıtayı ayıran boğazda, tarihi yalıları ve köprüleri izleyerek gün batımını karşılayın.",
+      en: "Watch the sunset over historic waterfront mansions and bridges on the strait dividing two continents.",
+      ar: "شاهدوا غروب الشمس فوق القصور التاريخية والجسور في المضيق الذي يفصل بين قارتين.",
+      zh: "在分隔两大洲的海峡上，欣赏历史豪宅与桥梁间的日落美景。",
+    },
+  },
+  {
+    id: "old-city-heritage",
+    price: 65,
+    duration: { tr: "6 saat", en: "6 hours", ar: "6 ساعات", zh: "6小时" },
+    img: "https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?q=80&w=1200&auto=format&fit=crop",
+    name: { tr: "Sultanahmet Miras Turu", en: "Sultanahmet Heritage Walk", ar: "جولة سلطان أحمد التراثية", zh: "苏丹艾哈迈德古迹之旅" },
+    loc: { tr: "İstanbul, Türkiye", en: "Istanbul, Turkey", ar: "إسطنبول، تركيا", zh: "土耳其伊斯坦布尔" },
+    desc: {
+      tr: "Ayasofya, Topkapı Sarayı ve Kapalıçarşı'yı uzman rehber eşliğinde keşfedin.",
+      en: "Discover Hagia Sophia, Topkapı Palace, and the Grand Bazaar with an expert local guide.",
+      ar: "اكتشف آيا صوفيا وقصر توبكابي والبازار الكبير برفقة مرشد محلي خبير.",
+      zh: "在专业当地向导陪同下，探索圣索菲亚大教堂、托普卡帕宫和大巴扎。",
+    },
+  },
+  {
+    id: "family-cappadocia",
+    price: 210,
+    duration: { tr: "2 gün", en: "2 days", ar: "يومان", zh: "2天" },
+    img: "https://images.unsplash.com/photo-1548013146-72479768bada?q=80&w=1200&auto=format&fit=crop",
+    name: { tr: "Ailece Kapadokya Kaçamağı", en: "Family Cappadocia Getaway", ar: "رحلة عائلية إلى كابادوكيا", zh: "卡帕多奇亚家庭之旅" },
+    loc: { tr: "Kapadokya, Türkiye", en: "Cappadocia, Turkey", ar: "كابادوكيا، تركيا", zh: "土耳其卡帕多奇亚" },
+    desc: {
+      tr: "Peri bacaları, sıcak hava balonu manzarası ve mağara otelde çocuk dostu bir kaçamak.",
+      en: "Fairy chimneys, hot-air balloon views, and a cave-hotel stay — a kid-friendly escape.",
+      ar: "المداخن الجنية، ومناظر مناطيد الهواء الساخن، وإقامة في فندق كهفي — هروب مناسب للعائلات.",
+      zh: "精灵烟囱、热气球美景与洞穴酒店住宿——适合全家出游。",
+    },
+  },
+  {
+    id: "airport-transfer-vip",
+    price: 45,
+    duration: { tr: "Tek yön", en: "One way", ar: "اتجاه واحد", zh: "单程" },
+    img: "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?q=80&w=1200&auto=format&fit=crop",
+    name: { tr: "VIP Havalimanı Transferi", en: "VIP Airport Transfer", ar: "نقل مطار VIP", zh: "VIP机场接送" },
+    loc: { tr: "İstanbul Havalimanı", en: "Istanbul Airport", ar: "مطار إسطنبول", zh: "伊斯坦布尔机场" },
+    desc: {
+      tr: "Canlı konum ve araç içi görüntü ile takip edilebilen, çocuklar için ideal güvenli transfer.",
+      en: "A safe transfer trackable by live location and in-car video — ideal when children travel alone.",
+      ar: "نقل آمن يمكن تتبعه عبر الموقع المباشر وفيديو داخل المركبة — مثالي عند سفر الأطفال بمفردهم.",
+      zh: "可通过实时定位和车内视频追踪的安全接送服务——非常适合儿童独自出行。",
+    },
+  },
+];
+
+function t(dictNode, lang) {
+  if (!dictNode) return "";
+  return dictNode[lang] || dictNode.en;
+}
+
+/* ---------- Signature element: the Trust Ring ---------- */
+function TrustRing({ size = 18 }) {
+  return (
+    <span className="tk-trust-ring" style={{ width: size, height: size }}>
+      <span className="tk-trust-dot" />
+    </span>
+  );
+}
+
+function Logo({ variant = "light" }) {
+  const gold = "url(#tkGoldHead)";
+  return (
+    <svg width="180" height="46" viewBox="0 0 480 120" fill="none">
+      <defs>
+        <linearGradient id="tkGoldHead" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#f9c74f" />
+          <stop offset="55%" stopColor="#f3922b" />
+          <stop offset="100%" stopColor="#d9541f" />
+        </linearGradient>
+        <linearGradient id="tkTextHead" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#f2994a" />
+          <stop offset="100%" stopColor="#c0392b" />
+        </linearGradient>
+      </defs>
+      <g stroke={variant === "light" ? "#e9edf2" : "#16304f"} fill="none" strokeWidth="3.2">
+        <circle cx="58" cy="58" r="46" />
+        <ellipse cx="58" cy="58" rx="46" ry="19" />
+        <ellipse cx="58" cy="58" rx="20" ry="46" />
+        <line x1="12" y1="58" x2="104" y2="58" />
+      </g>
+      <circle cx="58" cy="58" r="17" fill="none" stroke={gold} strokeWidth="8.5" />
+      <rect x="58" y="53.5" width="48" height="9" fill={gold} />
+      <rect x="91" y="62" width="6" height="9" fill={gold} />
+      <rect x="99" y="62" width="6" height="7" fill={gold} />
+      <text x="128" y="70" fontFamily="Cairo, sans-serif" fontWeight="800" fontSize="46" letterSpacing="1" fill="url(#tkTextHead)">
+        TOUR KEY
+      </text>
+    </svg>
+  );
+}
+
+/* ---------------------------------------------------------
+   Booking / Checkout with Stripe Elements
+--------------------------------------------------------- */
+const STRIPE_PUBLISHABLE_KEY = "pk_test_REPLACE_WITH_YOUR_PUBLISHABLE_KEY";
+const PAYMENT_INTENT_ENDPOINT = "https://YOUR-BACKEND-DOMAIN.example.com/create-payment-intent";
+
+function useStripe() {
+  const [stripe, setStripe] = useState(null);
+  useEffect(() => {
+    if (window.Stripe) {
+      setStripe(window.Stripe(STRIPE_PUBLISHABLE_KEY));
+      return;
+    }
+    const existing = document.querySelector('script[src="https://js.stripe.com/v3/"]');
+    const onLoad = () => setStripe(window.Stripe(STRIPE_PUBLISHABLE_KEY));
+    if (existing) {
+      existing.addEventListener("load", onLoad);
+      return () => existing.removeEventListener("load", onLoad);
+    }
+    const script = document.createElement("script");
+    script.src = "https://js.stripe.com/v3/";
+    script.async = true;
+    script.onload = onLoad;
+    document.body.appendChild(script);
+  }, []);
+  return stripe;
+}
+
+function BookingModal({ tour, lang, onClose }) {
+  const dir = RTL_LANGS.includes(lang) ? "rtl" : "ltr";
+  const [step, setStep] = useState(1);
+  const [date, setDate] = useState("");
+  const [guests, setGuests] = useState(2);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [payError, setPayError] = useState("");
+  const [paying, setPaying] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const stripe = useStripe();
+  const elementsRef = useRef(null);
+  const cardRef = useRef(null);
+  const cardMountRef = useRef(null);
+
+  const total = tour.price * guests;
+
+  useEffect(() => {
+    if (step === 3 && stripe && cardMountRef.current && !cardRef.current) {
+      const elements = stripe.elements();
+      elementsRef.current = elements;
+      const card = elements.create("card", {
+        style: {
+          base: {
+            fontSize: "16px",
+            color: "#241d10",
+            fontFamily: "Inter, sans-serif",
+            "::placeholder": { color: "#9b8f74" },
+          },
+          invalid: { color: "#c0392b" },
+        },
+      });
+      card.mount(cardMountRef.current);
+      cardRef.current = card;
+    }
+  }, [step, stripe]);
+
+  async function handlePay() {
+    setPayError("");
+    if (!stripe || !cardRef.current) {
+      setPayError(
+        lang === "tr"
+          ? "Ödeme sistemi yükleniyor, birkaç saniye sonra tekrar deneyin."
+          : "Payment system is loading, please try again in a moment."
+      );
+      return;
+    }
+    setPaying(true);
+    try {
+      const res = await fetch(PAYMENT_INTENT_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: Math.round(total * 100), currency: "usd", tourId: tour.id, email }),
+      });
+      const data = await res.json();
+      const confirm = await stripe.confirmCardPayment(data.clientSecret, {
+        payment_method: { card: cardRef.current, billing_details: { name, email } },
+      });
+      if (confirm.error) throw new Error(confirm.error.message);
+      setSuccess(true);
+    } catch (e) {
+      setPayError(
+        (lang === "tr" ? "Bu demoda gerçek bir ödeme sunucusu bağlı değil. " : "This demo has no live payment backend connected. ") +
+          (e.message || "")
+      );
+    } finally {
+      setPaying(false);
+    }
+  }
+
+  return (
+    <div className="tk-modal-backdrop" onClick={onClose}>
+      <div className="tk-modal" dir={dir} onClick={(e) => e.stopPropagation()}>
+        <button className="tk-modal-close" onClick={onClose} aria-label="Close">
+          <X size={20} />
+        </button>
+
+        {!success ? (
+          <>
+            <h3 className="tk-modal-title">{t(DICT.booking.title, lang)}</h3>
+            <p className="tk-modal-tour">{t(tour.name, lang)}</p>
+
+            <div className="tk-steps">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className={`tk-step-dot ${step >= n ? "active" : ""}`}>{n}</div>
+              ))}
+            </div>
+
+            {step === 1 && (
+              <div className="tk-form">
+                <label>{t(DICT.booking.date, lang)}</label>
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                <label>{t(DICT.booking.guests, lang)}</label>
+                <input type="number" min={1} max={12} value={guests} onChange={(e) => setGuests(Number(e.target.value))} />
+                <button className="tk-btn tk-btn-gold" disabled={!date} onClick={() => setStep(2)}>
+                  {t(DICT.booking.next, lang)}
+                </button>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="tk-form">
+                <label>{t(DICT.contact.name, lang)}</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
+                <label>{t(DICT.contact.email, lang)}</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <div className="tk-form-row">
+                  <button className="tk-btn tk-btn-ghost" onClick={() => setStep(1)}>{t(DICT.booking.back, lang)}</button>
+                  <button className="tk-btn tk-btn-gold" disabled={!name || !email} onClick={() => setStep(3)}>
+                    {t(DICT.booking.next, lang)}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="tk-form">
+                <div className="tk-total-row">
+                  <span>{t(DICT.booking.total, lang)}</span>
+                  <strong>${total}</strong>
+                </div>
+                <label>{lang === "tr" ? "Kart Bilgileri" : lang === "ar" ? "بيانات البطاقة" : lang === "zh" ? "卡信息" : "Card Details"}</label>
+                <div className="tk-card-element" ref={cardMountRef} />
+                <p className="tk-demo-note">{t(DICT.booking.demoNote, lang)}</p>
+                {payError && <p className="tk-pay-error">{payError}</p>}
+                <div className="tk-form-row">
+                  <button className="tk-btn tk-btn-ghost" onClick={() => setStep(2)}>{t(DICT.booking.back, lang)}</button>
+                  <button className="tk-btn tk-btn-gold" disabled={paying} onClick={handlePay}>
+                    {paying ? "…" : t(DICT.booking.pay, lang)}
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="tk-success">
+            <div className="tk-success-icon"><Check size={30} /></div>
+            <h3>{t(DICT.booking.success, lang)}</h3>
+            <p>{t(DICT.booking.successSub, lang)}</p>
+            <button className="tk-btn tk-btn-gold" onClick={onClose}>OK</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
+   Main App
+--------------------------------------------------------- */
+function TourKeySite() {
+  const [lang, setLang] = useState("tr");
+  const [page, setPage] = useState("home");
+  const [activeTour, setActiveTour] = useState(null);
+  const [bookingTour, setBookingTour] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const dir = RTL_LANGS.includes(lang) ? "rtl" : "ltr";
+
+  useEffect(() => {
+    document.documentElement.dir = dir;
+  }, [dir]);
+
+  const goto = (p) => {
+    setPage(p);
+    setMenuOpen(false);
+    setActiveTour(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  return (
+    <div className="tk-root" dir={dir}>
+      <style>{CSS}</style>
+
+      {/* HEADER */}
+      <header className="tk-header">
+        <div className="tk-header-inner">
+          <button className="tk-logo-btn" onClick={() => goto("home")}>
+            <Logo variant="light" />
+          </button>
+
+          <nav className={`tk-nav ${menuOpen ? "open" : ""}`}>
+            <button onClick={() => goto("home")} className={page === "home" ? "active" : ""}>{t(DICT.nav.home, lang)}</button>
+            <button onClick={() => goto("tours")} className={page === "tours" ? "active" : ""}>{t(DICT.nav.tours, lang)}</button>
+            <button onClick={() => goto("safety")} className={page === "safety" ? "active" : ""}>{t(DICT.nav.safety, lang)}</button>
+            <button onClick={() => goto("contact")} className={page === "contact" ? "active" : ""}>{t(DICT.nav.contact, lang)}</button>
+          </nav>
+
+          <div className="tk-header-right">
+            <div className="tk-lang-switch">
+              <Globe2 size={15} />
+              {LANGS.map((l) => (
+                <button key={l} className={lang === l ? "active" : ""} onClick={() => setLang(l)}>
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <button className="tk-menu-toggle" onClick={() => setMenuOpen((o) => !o)}>
+              <Menu size={22} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {page === "home" && (
+        <Home lang={lang} goto={goto} openTour={setActiveTour} openBooking={setBookingTour} />
+      )}
+      {page === "tours" && (
+        <ToursPage lang={lang} openTour={setActiveTour} openBooking={setBookingTour} />
+      )}
+      {page === "safety" && <SafetyPage lang={lang} />}
+      {page === "contact" && <ContactPage lang={lang} />}
+
+      {activeTour && (
+        <TourDetail
+          tour={activeTour}
+          lang={lang}
+          onClose={() => setActiveTour(null)}
+          onBook={() => {
+            setBookingTour(activeTour);
+            setActiveTour(null);
+          }}
+        />
+      )}
+      {bookingTour && <BookingModal tour={bookingTour} lang={lang} onClose={() => setBookingTour(null)} />}
+
+      <footer className="tk-footer">
+        <Logo variant="light" />
+        <p>© {new Date().getFullYear()} Tour Key. {t(DICT.footer.rights, lang)}</p>
+      </footer>
+    </div>
+  );
+}
+
+function Home({ lang, goto, openTour, openBooking }) {
+  return (
+    <>
+      <section className="tk-hero">
+        <div className="tk-hero-pattern" />
+        <div className="tk-hero-inner">
+          <span className="tk-eyebrow">{t(DICT.hero.eyebrow, lang)}</span>
+          <h1>{t(DICT.hero.title, lang)}</h1>
+          <p className="tk-hero-sub">{t(DICT.hero.sub, lang)}</p>
+          <div className="tk-hero-cta">
+            <button className="tk-btn tk-btn-gold" onClick={() => goto("tours")}>
+              {t(DICT.hero.cta, lang)} <ChevronRight size={16} />
+            </button>
+            <button className="tk-btn tk-btn-outline" onClick={() => goto("safety")}>
+              {t(DICT.hero.ctaSecondary, lang)}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="tk-tours-preview">
+        <h2>{t(DICT.tours.heading, lang)}</h2>
+        <p className="tk-section-sub">{t(DICT.tours.sub, lang)}</p>
+        <div className="tk-tour-grid">
+          {TOURS.slice(0, 3).map((tour) => (
+            <TourCard key={tour.id} tour={tour} lang={lang} onView={() => openTour(tour)} onBook={() => openBooking(tour)} />
+          ))}
+        </div>
+      </section>
+
+      <SafetyStrip lang={lang} onLearnMore={() => goto("safety")} />
+    </>
+  );
+}
+
+function TourCard({ tour, lang, onView, onBook }) {
+  return (
+    <div className="tk-tour-card">
+      <div className="tk-tour-img" style={{ backgroundImage: `url(${tour.img})` }}>
+        <span className="tk-live-badge">
+          <TrustRing size={12} /> {t(DICT.tours.live, lang)}
+        </span>
+      </div>
+      <div className="tk-tour-body">
+        <div className="tk-tour-loc"><MapPin size={13} /> {t(tour.loc, lang)}</div>
+        <h3>{t(tour.name, lang)}</h3>
+        <div className="tk-tour-meta">
+          <span><Clock size={13} /> {t(tour.duration, lang)}</span>
+        </div>
+        <div className="tk-tour-footer">
+          <div className="tk-price">${tour.price} <small>{t(DICT.tours.perPerson, lang)}</small></div>
+          <div className="tk-tour-actions">
+            <button className="tk-link-btn" onClick={onView}>{t(DICT.tours.viewDetail, lang)}</button>
+            <button className="tk-btn tk-btn-gold tk-btn-sm" onClick={onBook}>{t(DICT.tours.book, lang)}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ToursPage({ lang, openTour, openBooking }) {
+  return (
+    <section className="tk-tours-page">
+      <h1>{t(DICT.tours.heading, lang)}</h1>
+      <p className="tk-section-sub">{t(DICT.tours.sub, lang)}</p>
+      <div className="tk-tour-grid">
+        {TOURS.map((tour) => (
+          <TourCard key={tour.id} tour={tour} lang={lang} onView={() => openTour(tour)} onBook={() => openBooking(tour)} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TourDetail({ tour, lang, onClose, onBook }) {
+  const dir = RTL_LANGS.includes(lang) ? "rtl" : "ltr";
+  return (
+    <div className="tk-modal-backdrop" onClick={onClose}>
+      <div className="tk-modal tk-modal-wide" dir={dir} onClick={(e) => e.stopPropagation()}>
+        <button className="tk-modal-close" onClick={onClose} aria-label="Close"><X size={20} /></button>
+        <div className="tk-detail-img" style={{ backgroundImage: `url(${tour.img})` }} />
+        <div className="tk-detail-body">
+          <div className="tk-tour-loc"><MapPin size={13} /> {t(tour.loc, lang)}</div>
+          <h2>{t(tour.name, lang)}</h2>
+          <p>{t(tour.desc, lang)}</p>
+          <div className="tk-detail-meta">
+            <span><Clock size={15} /> {t(tour.duration, lang)}</span>
+            <span><TrustRing size={14} /> {t(DICT.tours.live, lang)}</span>
+          </div>
+          <div className="tk-detail-footer">
+            <div className="tk-price tk-price-lg">${tour.price} <small>{t(DICT.tours.perPerson, lang)}</small></div>
+            <button className="tk-btn tk-btn-gold" onClick={onBook}>{t(DICT.tours.book, lang)}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SafetyStrip({ lang, onLearnMore }) {
+  return (
+    <section className="tk-safety-strip">
+      <ShieldCheck size={30} />
+      <div>
+        <h3>{t(DICT.safety.heading, lang)}</h3>
+        <p>{t(DICT.safety.sub, lang)}</p>
+      </div>
+      <button className="tk-btn tk-btn-outline-light" onClick={onLearnMore}>
+        {lang === "tr" ? "Detaylar" : lang === "ar" ? "التفاصيل" : lang === "zh" ? "了解详情" : "Learn more"}
+      </button>
+    </section>
+  );
+}
+
+function SafetyPage({ lang }) {
+  const features = [
+    { icon: Radio, t: DICT.safety.f1t, d: DICT.safety.f1d },
+    { icon: Camera, t: DICT.safety.f2t, d: DICT.safety.f2d },
+    { icon: ShieldCheck, t: DICT.safety.f3t, d: DICT.safety.f3d },
+    { icon: KeyRound, t: DICT.safety.f4t, d: DICT.safety.f4d },
+  ];
+  return (
+    <section className="tk-safety-page">
+      <h1>{t(DICT.safety.heading, lang)}</h1>
+      <p className="tk-section-sub">{t(DICT.safety.sub, lang)}</p>
+      <div className="tk-safety-grid">
+        {features.map((f, i) => (
+          <div className="tk-safety-card" key={i}>
+            <f.icon size={26} />
+            <h3>{t(f.t, lang)}</h3>
+            <p>{t(f.d, lang)}</p>
+          </div>
+        ))}
+      </div>
+      <div className="tk-safety-badge">
+        <TrustRing size={16} /> {t(DICT.safety.badge, lang)}
+      </div>
+    </section>
+  );
+}
+
+function ContactPage({ lang }) {
+  const [sent, setSent] = useState(false);
+  return (
+    <section className="tk-contact-page">
+      <h1>{t(DICT.contact.heading, lang)}</h1>
+      <p className="tk-section-sub">{t(DICT.contact.sub, lang)}</p>
+      {!sent ? (
+        <form
+          className="tk-form tk-contact-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setSent(true);
+          }}
+        >
+          <label>{t(DICT.contact.name, lang)}</label>
+          <input type="text" required />
+          <label>{t(DICT.contact.email, lang)}</label>
+          <input type="email" required />
+          <label>{t(DICT.contact.msg, lang)}</label>
+          <textarea rows={4} required />
+          <button className="tk-btn tk-btn-gold" type="submit">{t(DICT.contact.send, lang)}</button>
+        </form>
+      ) : (
+        <div className="tk-success">
+          <div className="tk-success-icon"><Check size={30} /></div>
+          <p>{lang === "tr" ? "Mesajınız alındı, teşekkürler!" : lang === "ar" ? "تم استلام رسالتك، شكرًا لك!" : lang === "zh" ? "已收到您的留言，谢谢！" : "Message received, thank you!"}</p>
+        </div>
+      )}
+      <div className="tk-contact-info">
+        <span><Phone size={15} /> +90 212 000 00 00</span>
+        <span><Mail size={15} /> hello@tourkey.world</span>
+        <span><MapPin size={15} /> İstanbul, Türkiye</span>
+      </div>
+    </section>
+  );
+}
+
+/* ---------------------------------------------------------
+   CSS — brand tokens live here
+--------------------------------------------------------- */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@500;700&display=swap');
+
+:root {
+  --navy: #16304f;
+  --navy-deep: #0e2038;
+  --gold-1: #f9c74f;
+  --gold-2: #f3922b;
+  --gold-3: #d9541f;
+  --teal: #2ba9b4;
+  --parchment: #f6ecd4;
+  --parchment-soft: #faf3e3;
+  --ink: #241d10;
+  --ink-soft: #5a4f38;
+}
+
+.tk-root { font-family: 'Inter', 'Noto Sans SC', sans-serif; background: var(--parchment-soft); color: var(--ink); line-height: 1.5; }
+.tk-root[dir="rtl"] { font-family: 'Cairo', 'Inter', sans-serif; }
+.tk-root h1, .tk-root h2, .tk-root h3 { font-family: 'Cairo', 'Noto Sans SC', sans-serif; font-weight: 800; color: var(--navy); margin: 0 0 12px; }
+
+.tk-header { position: sticky; top: 0; z-index: 40; background: var(--navy-deep); border-bottom: 1px solid rgba(249,199,79,0.25); }
+.tk-header-inner { max-width: 1200px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.tk-logo-btn { background: none; border: none; cursor: pointer; padding: 0; }
+.tk-nav { display: flex; gap: 8px; }
+.tk-nav button { background: none; border: none; color: #cdd6e2; font-size: 14px; font-weight: 600; padding: 8px 14px; border-radius: 20px; cursor: pointer; transition: all .2s; }
+.tk-nav button:hover, .tk-nav button.active { background: rgba(249,199,79,0.12); color: var(--gold-1); }
+.tk-header-right { display: flex; align-items: center; gap: 14px; }
+.tk-lang-switch { display: flex; align-items: center; gap: 4px; color: #9fb0c3; background: rgba(255,255,255,0.06); padding: 4px 8px; border-radius: 20px; }
+.tk-lang-switch button { background: none; border: none; color: #9fb0c3; font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 12px; cursor: pointer; }
+.tk-lang-switch button.active { background: var(--gold-2); color: #1a1206; }
+.tk-menu-toggle { display: none; background: none; border: none; color: #cdd6e2; cursor: pointer; }
+
+@media (max-width: 860px) {
+  .tk-nav { position: absolute; top: 64px; left: 0; right: 0; background: var(--navy-deep); flex-direction: column; padding: 12px; display: none; }
+  .tk-nav.open { display: flex; }
+  .tk-menu-toggle { display: block; }
+}
+
+.tk-hero { position: relative; padding: 90px 24px 100px; text-align: center; background: radial-gradient(circle at 50% 0%, #1c3a5e, var(--navy-deep) 70%); overflow: hidden; }
+.tk-hero-pattern { position: absolute; inset: 0; opacity: .08; background-image: repeating-linear-gradient(45deg, var(--gold-1) 0 2px, transparent 2px 40px), repeating-linear-gradient(-45deg, var(--gold-1) 0 2px, transparent 2px 40px); }
+.tk-hero-inner { position: relative; max-width: 760px; margin: 0 auto; }
+.tk-eyebrow { display: inline-block; color: var(--teal); font-size: 12px; font-weight: 700; letter-spacing: 2px; margin-bottom: 18px; }
+.tk-hero h1 { color: #fff; font-size: clamp(32px, 5vw, 56px); line-height: 1.15; margin-bottom: 18px; }
+.tk-hero-sub { color: #c7d2df; font-size: 17px; max-width: 560px; margin: 0 auto 32px; }
+.tk-hero-cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+.tk-btn { border: none; border-radius: 999px; padding: 13px 26px; font-weight: 700; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: transform .15s, box-shadow .15s; }
+.tk-btn:hover { transform: translateY(-1px); }
+.tk-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.tk-btn-gold { background: linear-gradient(135deg, var(--gold-1), var(--gold-3)); color: #2a1704; box-shadow: 0 6px 18px rgba(217,84,31,0.35); }
+.tk-btn-outline { background: transparent; color: var(--gold-1); border: 1.5px solid rgba(249,199,79,0.5); }
+.tk-btn-outline-light { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,0.5); white-space: nowrap; }
+.tk-btn-ghost { background: rgba(22,48,79,0.08); color: var(--navy); }
+.tk-btn-sm { padding: 9px 16px; font-size: 12.5px; }
+.tk-link-btn { background: none; border: none; color: var(--navy); font-weight: 600; font-size: 13px; text-decoration: underline; cursor: pointer; padding: 0; }
+
+.tk-tours-preview, .tk-tours-page, .tk-safety-page, .tk-contact-page { max-width: 1180px; margin: 0 auto; padding: 64px 24px; text-align: center; }
+.tk-section-sub { color: var(--ink-soft); max-width: 560px; margin: 0 auto 40px; }
+.tk-tour-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 24px; text-align: left; }
+.tk-root[dir="rtl"] .tk-tour-grid { text-align: right; }
+
+.tk-tour-card { background: #fff; border-radius: 18px; overflow: hidden; box-shadow: 0 4px 24px rgba(22,48,79,0.08); transition: transform .2s, box-shadow .2s; }
+.tk-tour-card:hover { transform: translateY(-4px); box-shadow: 0 10px 30px rgba(22,48,79,0.15); }
+.tk-tour-img { height: 170px; background-size: cover; background-position: center; position: relative; }
+.tk-live-badge { position: absolute; top: 10px; left: 10px; background: rgba(14,32,56,0.75); backdrop-filter: blur(4px); color: #fff; font-size: 10.5px; font-weight: 700; padding: 5px 10px; border-radius: 20px; display: flex; align-items: center; gap: 6px; }
+.tk-root[dir="rtl"] .tk-live-badge { left: auto; right: 10px; }
+.tk-tour-body { padding: 18px 20px 20px; }
+.tk-tour-loc { display: flex; align-items: center; gap: 5px; color: var(--teal); font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+.tk-tour-body h3 { font-size: 18px; margin-bottom: 8px; }
+.tk-tour-meta { display: flex; gap: 14px; color: var(--ink-soft); font-size: 13px; margin-bottom: 16px; }
+.tk-tour-meta span { display: flex; align-items: center; gap: 4px; }
+.tk-tour-footer { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.tk-price { font-family: 'Cairo', sans-serif; font-weight: 800; font-size: 20px; color: var(--navy); }
+.tk-price small { font-family: 'Inter'; font-weight: 500; font-size: 11px; color: var(--ink-soft); }
+.tk-price-lg { font-size: 28px; }
+.tk-tour-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+.tk-trust-ring { position: relative; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid var(--teal); flex-shrink: 0; }
+.tk-trust-dot { width: 45%; height: 45%; background: var(--teal); border-radius: 50%; animation: tkPulse 1.6s ease-in-out infinite; }
+@keyframes tkPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(43,169,180,0.5);} 50% { box-shadow: 0 0 0 5px rgba(43,169,180,0);} }
+
+.tk-safety-strip { max-width: 1180px; margin: 0 40px 60px; margin-left: auto; margin-right: auto; background: linear-gradient(120deg, var(--navy), var(--navy-deep)); color: #fff; border-radius: 22px; padding: 36px 40px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.tk-safety-strip svg { color: var(--gold-1); flex-shrink: 0; }
+.tk-safety-strip h3 { color: #fff; margin-bottom: 6px; }
+.tk-safety-strip p { color: #c7d2df; margin: 0; max-width: 480px; }
+.tk-safety-strip > div { flex: 1; min-width: 220px; }
+
+.tk-safety-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-top: 20px; }
+.tk-safety-card { background: #fff; border-radius: 18px; padding: 28px 24px; text-align: left; box-shadow: 0 4px 20px rgba(22,48,79,0.06); }
+.tk-root[dir="rtl"] .tk-safety-card { text-align: right; }
+.tk-safety-card svg { color: var(--gold-3); margin-bottom: 12px; }
+.tk-safety-card p { color: var(--ink-soft); font-size: 14px; }
+.tk-safety-badge { margin-top: 32px; display: inline-flex; align-items: center; gap: 8px; background: rgba(43,169,180,0.1); color: var(--teal); font-weight: 700; font-size: 13px; padding: 10px 20px; border-radius: 20px; }
+
+.tk-contact-form { max-width: 480px; margin: 0 auto; text-align: left; }
+.tk-contact-info { display: flex; justify-content: center; gap: 26px; flex-wrap: wrap; margin-top: 30px; color: var(--ink-soft); font-size: 14px; }
+.tk-contact-info span { display: flex; align-items: center; gap: 6px; }
+
+.tk-form { display: flex; flex-direction: column; gap: 6px; }
+.tk-form label { font-size: 12.5px; font-weight: 700; color: var(--navy); margin-top: 8px; }
+.tk-form input, .tk-form textarea { border: 1.5px solid #e4d8b8; border-radius: 10px; padding: 11px 14px; font-size: 14px; font-family: inherit; background: #fff; }
+.tk-form input:focus, .tk-form textarea:focus { outline: 2px solid var(--teal); border-color: var(--teal); }
+.tk-form-row { display: flex; gap: 10px; margin-top: 14px; }
+.tk-form-row .tk-btn { flex: 1; justify-content: center; }
+.tk-form > .tk-btn { margin-top: 16px; }
+.tk-total-row { display: flex; justify-content: space-between; font-size: 15px; font-weight: 700; color: var(--navy); background: var(--parchment); padding: 12px 14px; border-radius: 10px; margin-bottom: 4px; }
+.tk-card-element { border: 1.5px solid #e4d8b8; border-radius: 10px; padding: 12px 14px; background: #fff; }
+.tk-demo-note { font-size: 11.5px; color: var(--ink-soft); font-style: italic; }
+.tk-pay-error { font-size: 12.5px; color: #c0392b; background: #fdecea; padding: 8px 12px; border-radius: 8px; }
+
+.tk-steps { display: flex; gap: 8px; margin: 10px 0 18px; }
+.tk-step-dot { width: 26px; height: 26px; border-radius: 50%; background: #eee1c2; color: var(--ink-soft); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+.tk-step-dot.active { background: var(--gold-2); color: #fff; }
+
+.tk-modal-backdrop { position: fixed; inset: 0; background: rgba(14,32,56,0.55); backdrop-filter: blur(3px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.tk-modal { background: var(--parchment-soft); border-radius: 20px; max-width: 440px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 30px 26px; position: relative; }
+.tk-modal-wide { max-width: 640px; padding: 0; overflow: hidden; }
+.tk-modal-close { position: absolute; top: 14px; right: 14px; background: rgba(0,0,0,0.06); border: none; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2; }
+.tk-modal-title { margin-bottom: 4px; }
+.tk-modal-tour { color: var(--ink-soft); font-size: 13px; margin-bottom: 6px; }
+.tk-detail-img { height: 240px; background-size: cover; background-position: center; }
+.tk-detail-body { padding: 26px 28px 30px; }
+.tk-detail-meta { display: flex; gap: 18px; align-items: center; margin: 16px 0; color: var(--ink-soft); font-size: 13px; }
+.tk-detail-meta span { display: flex; align-items: center; gap: 6px; }
+.tk-detail-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; }
+
+.tk-success { text-align: center; padding: 20px 0; }
+.tk-success-icon { width: 56px; height: 56px; border-radius: 50%; background: var(--teal); color: #fff; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.tk-success .tk-btn { margin-top: 16px; }
+
+.tk-footer { background: var(--navy-deep); color: #9fb0c3; text-align: center; padding: 40px 24px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.tk-footer p { font-size: 12.5px; margin: 0; }
+`;
+
+const rootEl = document.getElementById('root');
+const root = ReactDOM.createRoot(rootEl);
+root.render(<TourKeySite />);
+</script>
+</body>
+</html>
